@@ -1,0 +1,91 @@
+version: '3'
+services:
+  web:
+    build:
+      context: .
+    image: herokuphp
+    command: 'bash -c "source .env && tools/start-web.sh"'
+    working_dir: /app/user
+    ports:
+      - 8080:8080
+    volumes:
+      - .:/app/user:rw,cached
+      # Exclude theme's and project's node_modules from the sync for performance reasons
+      - /app/user/htdocs/wp-content/themes/starter-theme/assets/node_modules
+      - /app/user/node_modules
+    environment:
+      - VIRTUAL_HOST=wordpress.local
+    depends_on:
+      - mysql
+      - redis
+    env_file:
+      - .env
+
+  shell:
+    build:
+      context: .
+    image: herokuphp
+    command: 'bash -c "source .env && bash"'
+    working_dir: /app/user
+    volumes:
+      - .:/app/user:rw,cached
+    depends_on:
+      - mysql
+      - redis
+    env_file:
+      - .env
+
+  ci:
+    build:
+      context: .
+    image: herokuphp
+    command: bash tools/ci.sh
+    working_dir: /app/user
+    volumes:
+      - .:/app/user:rw,cached
+    depends_on:
+      - mysql
+      - redis
+    env_file:
+      - .env
+ 
+  ##
+  # To use adminer, navigate to http://localhost:8081
+  #
+  # Use the following mysql credentials:
+  #
+  # Host: mysql
+  # User: wordpress
+  # Password: password
+  # Database: wordpress
+  ##
+  adminer:
+    image: clue/adminer:latest
+    ports:
+      - 8081:80
+    depends_on:
+      - mysql
+    env_file:
+      - .env
+
+  mysql:
+    image: mysql:5.7
+    command: mysqld --sql_mode=""
+    ports:
+      - '${DATABASE_PORT:-5432}:3306'
+    volumes:
+      - "./data/db/mysql:/var/lib/mysql"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: password
+    env_file:
+      - .env
+
+  redis:
+    image: redis:3.2
+    env_file:
+      - .env
+#    ports:
+#      - '${REDIS_PORT:-6379}:6379'
